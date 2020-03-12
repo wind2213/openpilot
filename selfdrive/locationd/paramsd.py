@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-import numpy as np
 import math
 
-import cereal.messaging as messaging
-from selfdrive.locationd.kalman.models.car_kf import CarKalman, ObservationKind, States
+import numpy as np
 
+import cereal.messaging as messaging
+from cereal import car
+from common.params import Params
+from selfdrive.locationd.kalman.models.car_kf import (CarKalman,
+                                                      ObservationKind, States)
+from selfdrive.swaglog import cloudlog
 
 CARSTATE_DECIMATION = 5
 
@@ -80,11 +84,11 @@ def main(sm=None, pm=None):
   if pm is None:
     pm = messaging.PubMaster(['liveParameters'])
 
-  # TODO: Read from car params at runtime
-  from selfdrive.car.toyota.interface import CarInterface
-  from selfdrive.car.toyota.values import CAR
+  # wait for stats about the car to come in from controls
+  cloudlog.info("paramsd is waiting for CarParams")
+  CP = car.CarParams.from_bytes(Params().get("CarParams", block=True))
+  cloudlog.info("paramsd got CarParams")
 
-  CP = CarInterface.get_params(CAR.COROLLA_TSS2)
   learner = ParamsLearner(CP)
 
   while True:
@@ -98,9 +102,7 @@ def main(sm=None, pm=None):
 
     # TODO: set valid to false when locationd stops sending
     # TODO: make sure controlsd knows when there is no gyro
-    # TODO: move posenetValid somewhere else to show the model uncertainty alert
     # TODO: Save and resume values from param
-    # TODO: Change KF to allow mass, etc to be inputs in predict step
 
     if sm.updated['carState']:
       msg = messaging.new_message('liveParameters')
