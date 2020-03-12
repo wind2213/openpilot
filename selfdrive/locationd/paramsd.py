@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 import math
 
+import json
 import numpy as np
 
 import cereal.messaging as messaging
 from cereal import car
-from common.params import Params
+from common.params import Params, put_nonblocking
 from selfdrive.locationd.kalman.models.car_kf import (CarKalman,
                                                       ObservationKind, States)
 from selfdrive.swaglog import cloudlog
@@ -14,8 +15,8 @@ CARSTATE_DECIMATION = 5
 
 
 class ParamsLearner:
-  def __init__(self, CP):
-    self.kf = CarKalman()
+  def __init__(self, CP, steer_ratio, stiffness_factor, angle_offset):
+    self.kf = CarKalman(steer_ratio, stiffness_factor, angle_offset)
 
     self.kf.filter.set_mass(CP.mass)  # pylint: disable=no-member
     self.kf.filter.set_rotational_inertia(CP.rotationalInertia)  # pylint: disable=no-member
@@ -84,13 +85,33 @@ def main(sm=None, pm=None):
   if pm is None:
     pm = messaging.PubMaster(['liveParameters'])
 
+  params_reader = Params()
   # wait for stats about the car to come in from controls
   cloudlog.info("paramsd is waiting for CarParams")
-  CP = car.CarParams.from_bytes(Params().get("CarParams", block=True))
+  CP = car.CarParams.from_bytes(params_reader.get("CarParams", block=True))
   cloudlog.info("paramsd got CarParams")
 
-  learner = ParamsLearner(CP)
+  params = params_reader.get("LiveParameters")
 
+  # Check if car model matches
+  if params is not None:
+    params = json.loads(params)
+    if params.get('carFingerprint', None) != CP.carFingerprint:
+      cloudlog.info("Parameter learner found parameters for wrong car.")
+      params = None
+
+  if params is None:
+    params = {
+      'carFingerprint': CP.carFingerprint,
+      'steerRatio': CP.steerRatio,
+      'stiffnessFactor': 1.0,
+      'angleOffsetAverage': 0.0,
+    }
+    cloudlog.info("Parameter learner resetting to default values")
+
+  learner = ParamsLearner(CP, params['steerRatio'], params['stiffnessFactor'], math.radians(params['angleOffsetAverage']))
+
+  i = 0
   while True:
     sm.update()
 
@@ -102,7 +123,6 @@ def main(sm=None, pm=None):
 
     # TODO: set valid to false when locationd stops sending
     # TODO: make sure controlsd knows when there is no gyro
-    # TODO: Save and resume values from param
 
     if sm.updated['carState']:
       msg = messaging.new_message('liveParameters')
@@ -117,6 +137,16 @@ def main(sm=None, pm=None):
       msg.liveParameters.stiffnessFactor = float(x[States.STIFFNESS])
       msg.liveParameters.angleOffsetAverage = math.degrees(x[States.ANGLE_OFFSET])
       msg.liveParameters.angleOffset = math.degrees(x[States.ANGLE_OFFSET_FAST])
+
+      i += 1
+      if i % 6000 == 0:   # once a minute
+        params = {
+          'carFingerprint': CP.carFingerprint,
+          'steerRatio': msg.liveParameters.steerRatio,
+          'stiffnessFactor': msg.liveParameters.stiffnessFactor,
+          'angleOffsetAverage': msg.liveParameters.angleOffsetAverage,
+        }
+        put_nonblocking("LiveParameters", json.dumps(params))
 
       # P = learner.kf.P
       # print()

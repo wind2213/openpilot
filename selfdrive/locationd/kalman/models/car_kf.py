@@ -147,8 +147,12 @@ class CarKalman():
 
     gen_code(name, f_sym, dt, state_sym, obs_eqs, dim_state, dim_state, maha_test_kinds=maha_test_kinds, global_vars=CarKalman.global_vars)
 
-  def __init__(self):
+  def __init__(self, steer_ratio=15, stiffness_factor=1, angle_offset=0):
     self.dim_state = self.x_initial.shape[0]
+    x_init = self.x_initial
+    x_init[States.STEER_RATIO] = steer_ratio
+    x_init[States.STIFFNESS] = stiffness_factor
+    x_init[States.ANGLE_OFFSET] = angle_offset
 
     # init filter
     self.filter = EKF_sym(self.name, self.Q, self.x_initial, self.P_initial, self.dim_state, self.dim_state, maha_test_kinds=self.maha_test_kinds, global_vars=self.global_vars)
