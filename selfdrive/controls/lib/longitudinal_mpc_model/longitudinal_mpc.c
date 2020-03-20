@@ -70,12 +70,12 @@ void init_with_simulation(double v_ego){
 
   double x_ego = 0.0;
 
-  double dt = 0.1;
+  double dt = 0.2;
   double t = 0.;
 
   for (i = 0; i < N + 1; ++i){
     if (i > 4){
-      dt = 0.3;
+      dt = 0.6;
     }
 
     acadoVariables.x[i*NX] = x_ego;

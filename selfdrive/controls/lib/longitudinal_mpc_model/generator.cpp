@@ -50,7 +50,7 @@ int main( )
   BMatrix QN(3,3); QN.setAll(true);
 
   // Non uniform time grid
-  // First 5 timesteps are 0.1, after that it's 0.3
+  // First 5 timesteps are 0.2, after that it's 0.6
   DMatrix numSteps(20, 1);
   for (int i = 0; i < 5; i++){
     numSteps(i) = 1;
@@ -61,7 +61,7 @@ int main( )
 
   // Setup Optimal Control Problem
   const double tStart = 0.0;
-  const double tEnd   = 5.0;
+  const double tEnd   = 10.0;
 
   OCP ocp( tStart, tEnd, numSteps);
   ocp.subjectTo(f);
