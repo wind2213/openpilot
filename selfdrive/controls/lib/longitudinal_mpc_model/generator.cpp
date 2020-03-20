@@ -4,11 +4,6 @@ const int controlHorizon = 50;
 
 using namespace std;
 
-#define G 9.81
-#define TR 1.8
-
-#define RW(v_ego, v_l) (v_ego * TR - (v_l - v_ego) * TR + v_ego*v_ego/(2*G) - v_l*v_l / (2*G))
-#define NORM_RW_ERROR(v_ego, v_l, p) ((RW(v_ego, v_l) + 4.0 - p)/(sqrt(v_ego + 0.5) + 0.1))
 
 int main( )
 {
@@ -17,24 +12,29 @@ int main( )
 
   DifferentialEquation f;
 
-  DifferentialState x_ego, v_ego, a_ego;
-  OnlineData x_l, v_l;
+  DifferentialState x_ego, v_ego, a_ego, t;
+
+  OnlineData x_poly_r0, x_poly_r1, x_poly_r2, x_poly_r3;
+  OnlineData v_poly_r0, v_poly_r1, v_poly_r2, v_poly_r3;
+  OnlineData a_poly_r0, a_poly_r1, a_poly_r2, a_poly_r3;
 
   Control j_ego;
-
-  auto desired = 4.0 + RW(v_ego, v_l);
-  auto d_l = x_l - x_ego;
 
   // Equations of motion
   f << dot(x_ego) == v_ego;
   f << dot(v_ego) == a_ego;
   f << dot(a_ego) == j_ego;
+  f << dot(t) == 1;
+
+  auto poly_x = x_poly_r0*(t*t*t) + x_poly_r1*(t*t) + x_poly_r2*t + x_poly_r3;
+  auto poly_v = v_poly_r0*(t*t*t) + v_poly_r1*(t*t) + v_poly_r2*t + v_poly_r3;
+  auto poly_a = a_poly_r0*(t*t*t) + a_poly_r1*(t*t) + a_poly_r2*t + a_poly_r3;
 
   // Running cost
   Function h;
-  h << exp(0.3 * NORM_RW_ERROR(v_ego, v_l, d_l)) - 1;
-  h << (d_l - desired) / (0.05 * v_ego + 0.5);
-  h << a_ego * (0.1 * v_ego + 1.0);
+  h << x_ego - poly_x;
+  h << v_ego - poly_v;
+  h << a_ego - poly_a;
   h << j_ego * (0.1 * v_ego + 1.0);
 
   // Weights are defined in mpc.
@@ -42,15 +42,15 @@ int main( )
 
   // Terminal cost
   Function hN;
-  hN << exp(0.3 * NORM_RW_ERROR(v_ego, v_l, d_l)) - 1;
-  hN << (d_l - desired) / (0.05 * v_ego + 0.5);
-  hN << a_ego * (0.1 * v_ego + 1.0);
+  hN << x_ego - poly_x;
+  hN << v_ego - poly_v;
+  hN << a_ego - poly_a;
 
   // Weights are defined in mpc.
   BMatrix QN(3,3); QN.setAll(true);
 
   // Non uniform time grid
-  // First 5 timesteps are 0.2, after that it's 0.6
+  // First 5 timesteps are 0.1, after that it's 0.3
   DMatrix numSteps(20, 1);
   for (int i = 0; i < 5; i++){
     numSteps(i) = 1;
@@ -61,7 +61,7 @@ int main( )
 
   // Setup Optimal Control Problem
   const double tStart = 0.0;
-  const double tEnd   = 10.0;
+  const double tEnd   = 5.0;
 
   OCP ocp( tStart, tEnd, numSteps);
   ocp.subjectTo(f);
@@ -69,8 +69,8 @@ int main( )
   ocp.minimizeLSQ(Q, h);
   ocp.minimizeLSQEndTerm(QN, hN);
 
-  ocp.subjectTo( 0.0 <= v_ego);
-  ocp.setNOD(2);
+  //ocp.subjectTo( 0.0 <= v_ego);
+  ocp.setNOD(12);
 
   OCPexport mpc(ocp);
   mpc.set( HESSIAN_APPROXIMATION, GAUSS_NEWTON );
