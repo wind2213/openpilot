@@ -26,12 +26,12 @@ typedef struct {
   double x_ego[N+1];
   double v_ego[N+1];
   double a_ego[N+1];
-  double j_ego[N];
   double t[N+1];
+  double j_ego[N];
   double cost;
 } log_t;
 
-void init(double xCost, double vCost, double aCost, double jerkCost){
+void init(double xCost, double vCost, double aCost, double accelCost, double jerkCost){
   acado_initializeSolver();
   int    i;
   const int STEP_MULTIPLIER = 3;
@@ -57,11 +57,13 @@ void init(double xCost, double vCost, double aCost, double jerkCost){
     acadoVariables.W[NY*NY*i + (NY+1)*0] = xCost * f;
     acadoVariables.W[NY*NY*i + (NY+1)*1] = vCost * f;
     acadoVariables.W[NY*NY*i + (NY+1)*2] = aCost * f;
-    acadoVariables.W[NY*NY*i + (NY+1)*3] = jerkCost * f;
+    acadoVariables.W[NY*NY*i + (NY+1)*3] = accelCost * f;
+    acadoVariables.W[NY*NY*i + (NY+1)*4] = jerkCost * f;
   }
   acadoVariables.WN[(NYN+1)*0] = xCost * STEP_MULTIPLIER;
   acadoVariables.WN[(NYN+1)*1] = vCost * STEP_MULTIPLIER;
   acadoVariables.WN[(NYN+1)*2] = aCost * STEP_MULTIPLIER;
+  acadoVariables.WN[(NYN+1)*3] = accelCost * STEP_MULTIPLIER;
 
 }
 
@@ -71,7 +73,7 @@ void init_with_simulation(double v_ego){
   double x_ego = 0.0;
 
   double dt = 0.2;
-  double t = 0.;
+  double t = 0.0;
 
   for (i = 0; i < N + 1; ++i){
     if (i > 4){
@@ -125,15 +127,15 @@ int run_mpc(state_t * x0, log_t * solution,
     solution->x_ego[i] = acadoVariables.x[i*NX];
     solution->v_ego[i] = acadoVariables.x[i*NX+1];
     solution->a_ego[i] = acadoVariables.x[i*NX+2];
+    solution->t[i] = acadoVariables.x[i*NX+3];
 
     if (i < N){
       solution->j_ego[i] = acadoVariables.u[i];
     }
   }
-  solution->cost = acado_getObjective();
+  /* solution->cost = acado_getObjective(); */
 
   // Dont shift states here. Current solution is closer to next timestep than if
   // we shift by 0.1 seconds.
-
   return acado_getNWSR();
 }

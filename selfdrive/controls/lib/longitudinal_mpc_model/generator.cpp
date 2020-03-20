@@ -35,19 +35,21 @@ int main( )
   h << x_ego - poly_x;
   h << v_ego - poly_v;
   h << a_ego - poly_a;
+  h << a_ego * (0.1 * v_ego + 1.0);
   h << j_ego * (0.1 * v_ego + 1.0);
 
   // Weights are defined in mpc.
-  BMatrix Q(4,4); Q.setAll(true);
+  BMatrix Q(5,5); Q.setAll(true);
 
   // Terminal cost
   Function hN;
   hN << x_ego - poly_x;
   hN << v_ego - poly_v;
   hN << a_ego - poly_a;
+  hN << a_ego * (0.1 * v_ego + 1.0);
 
   // Weights are defined in mpc.
-  BMatrix QN(3,3); QN.setAll(true);
+  BMatrix QN(4,4); QN.setAll(true);
 
   // Non uniform time grid
   // First 5 timesteps are 0.2, after that it's 0.6

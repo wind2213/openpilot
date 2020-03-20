@@ -15,16 +15,16 @@ double x_ego, v_ego, a_ego;
 
 
 typedef struct {
-double x_ego[N+1];
-double v_ego[N+1];
-double a_ego[N+1];
-double j_ego[N];
-double t[N+1];
+double x_ego[21];
+double v_ego[21];
+double a_ego[21];
+double t[21];
+double j_ego[20];
 double cost;
 } log_t;
 
 
-void init(double xCost, double vCost, double aCost, double jerkCost);
+void init(double xCost, double vCost, double aCost, double accelCost, double jerkCost);
 void init_with_simulation(double v_ego);
 int run_mpc(state_t * x0, log_t * solution, double x_poly[4], double v_poly[4], double a_poly[4]);
 """)
