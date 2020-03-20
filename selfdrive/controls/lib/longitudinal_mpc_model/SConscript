@@ -1,5 +1,6 @@
 Import('env', 'arch')
 
+
 cpp_path = [
     "#phonelibs/acado/include",
     "#phonelibs/acado/include/acado",
@@ -12,7 +13,7 @@ cpp_path = [
 ]
 
 mpc_files = [
-    "lateral_mpc.c",
+    "longitudinal_mpc.c",
     Glob("lib_mpc_export/*.c"),
     Glob("lib_mpc_export/*.cpp"),
 ]
@@ -22,6 +23,7 @@ interface_dir = Dir('lib_mpc_export')
 SConscript(['#phonelibs/qpoases/SConscript'], variant_dir='lib_qp', exports=['interface_dir'])
 
 env.SharedLibrary('mpc', mpc_files, LIBS=['m', 'qpoases'], LIBPATH=['lib_qp'], CPPPATH=cpp_path)
+
 if arch != "aarch64":
     acado_libs = [File("#phonelibs/acado/x64/lib/libacado_toolkit.a"),
                   File("#phonelibs/acado/x64/lib/libacado_casadi.a"),
